@@ -322,15 +322,15 @@ export default class Members extends StatelessWebexPlugin {
   }
 
   /**
-   * when new participant updates come in, both delta and full participants, update them in members collection
-   * delta object in the event will have {updated, added} and full will be the full membersCollection
+   * When new participant updates come in, both delta and full participants, update them in members collection.
+   * Delta object in the event will have {updated, added} and full will be the full membersCollection.
    * @param {Object} payload
    * @param {Object} payload.participants
    * @returns {undefined}
    * @private
    * @memberof Members
    */
-  locusParticipantsUpdate(payload: {participants: object; isReplace?: boolean}) {
+  locusParticipantsUpdate(payload: {participants: any[]; isReplace?: boolean}) {
     if (payload) {
       if (payload.isReplace) {
         this.clearMembers();
@@ -353,6 +353,20 @@ export default class Members extends StatelessWebexPlugin {
           isReplace: !!payload.isReplace,
         }
       );
+
+      payload.participants.forEach((participant) => {
+        if (participant.controls?.brb?.enabled) {
+          Trigger.trigger(
+            this,
+            {
+              file: 'members',
+              function: 'locusParticipantsUpdate',
+            },
+            'participant:stepped_away',
+            participant
+          );
+        }
+      });
     }
   }
 
