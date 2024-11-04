@@ -330,13 +330,14 @@ export default class Members extends StatelessWebexPlugin {
    * @private
    * @memberof Members
    */
-  locusParticipantsUpdate(payload: {participants: any[]; isReplace?: boolean}) {
+  locusParticipantsUpdate(payload: {participants: object; isReplace?: boolean}) {
     if (payload) {
       if (payload.isReplace) {
         this.clearMembers();
       }
       const delta = this.handleLocusInfoUpdatedParticipants(payload);
       const full = this.handleMembersUpdate(delta); // SDK should propagate the full list for both delta and non delta updates
+      const participantsArray = Object.values(payload.participants);
 
       this.receiveSlotManager?.updateMemberIds();
 
@@ -354,7 +355,7 @@ export default class Members extends StatelessWebexPlugin {
         }
       );
 
-      payload.participants.forEach((participant) => {
+      participantsArray.forEach((participant) => {
         if (participant.controls?.brb?.enabled) {
           Trigger.trigger(
             this,
