@@ -6447,6 +6447,15 @@ export default class Meeting extends StatelessWebexPlugin {
         this.webex.meetings.geoHintInfo?.clientAddress ||
         options.data.intervalMetadata.peerReflexiveIP ||
         MQA_STATS.DEFAULT_IP;
+
+      const {members} = this.getMembers().membersCollection;
+
+      // Count members with a 'state' of 'JOINED'
+      options.data.intervalMetadata.meetingUserCount = Object.values(members).filter(
+        // @ts-ignore
+        (member) => member.participant.state === 'JOINED'
+      ).length;
+
       // @ts-ignore
       this.webex.internal.newMetrics.submitMQE({
         name: 'client.mediaquality.event',

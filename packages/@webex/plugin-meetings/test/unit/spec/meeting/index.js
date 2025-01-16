@@ -3310,6 +3310,7 @@ describe('plugin-meetings', () => {
         describe('handles StatsAnalyzer events', () => {
           let prevConfigValue;
           let statsAnalyzerStub;
+          let clock;
 
           beforeEach(async () => {
             meeting.meetingState = 'ACTIVE';
@@ -3322,6 +3323,8 @@ describe('plugin-meetings', () => {
             // mock the StatsAnalyzer constructor
             sinon.stub(InternalMediaCoreModule, 'StatsAnalyzer').returns(statsAnalyzerStub);
 
+            clock = sinon.useFakeTimers();
+
             await meeting.addMedia({
               mediaSettings: {},
             });
@@ -3329,6 +3332,8 @@ describe('plugin-meetings', () => {
 
           afterEach(() => {
             meeting.config.stats.enableStatsAnalyzer = prevConfigValue;
+            sinon.restore();
+            clock.restore();
           });
 
           it('LOCAL_MEDIA_STARTED triggers "meeting:media:local:start" event and sends metrics', async () => {
@@ -3475,6 +3480,63 @@ describe('plugin-meetings', () => {
               payload: {mediaType: 'share', shareInstanceId: meeting.remoteShareInstanceId},
               options: {
                 meetingId: meeting.id,
+              },
+            });
+          });
+
+          it('counts the number of JOINED members for MEDIA_QUALITY event', async () => {
+            let fakeMembersCollection = {
+              members: {
+                member1: { participant: { state: 'JOINED' } },
+                member2: { participant: { state: 'LEFT' } },
+                member3: { participant: { state: 'JOINED' } },
+              },
+            };
+            sinon.stub(meeting, 'getMembers').returns({ membersCollection: fakeMembersCollection });
+            const fakeData = { intervalMetadata: {}, networkType: 'wifi' };
+
+            statsAnalyzerStub.emit(
+              { file: 'test', function: 'test' },
+              StatsAnalyzerEventNames.MEDIA_QUALITY,
+              { data: fakeData }
+            );
+
+            assert.calledWithMatch(webex.internal.newMetrics.submitMQE, {
+              name: 'client.mediaquality.event',
+              options: {
+                meetingId: meeting.id,
+              },
+              payload: {
+                intervals: [sinon.match.has('intervalMetadata', sinon.match.has('meetingUserCount', 2))],
+              },
+            });
+
+            // Update the fake members collection to simulate a change in participant states
+            fakeMembersCollection = {
+              members: {
+                member1: { participant: { state: 'JOINED' } },
+                member2: { participant: { state: 'LEFT' } },
+                member3: { participant: { state: 'LEFT' } },
+              },
+            };
+            meeting.getMembers.restore();
+            sinon.stub(meeting, 'getMembers').returns({ membersCollection: fakeMembersCollection });
+
+            clock.tick(60000);
+
+            statsAnalyzerStub.emit(
+              { file: 'test', function: 'test' },
+              StatsAnalyzerEventNames.MEDIA_QUALITY,
+              { data: fakeData }
+            );
+
+            assert.calledWithMatch(webex.internal.newMetrics.submitMQE, {
+              name: 'client.mediaquality.event',
+              options: {
+                meetingId: meeting.id,
+              },
+              payload: {
+                intervals: [sinon.match.has('intervalMetadata', sinon.match.has('meetingUserCount', 1))],
               },
             });
           });
