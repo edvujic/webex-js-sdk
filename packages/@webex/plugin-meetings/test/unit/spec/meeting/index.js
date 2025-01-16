@@ -3310,7 +3310,6 @@ describe('plugin-meetings', () => {
         describe('handles StatsAnalyzer events', () => {
           let prevConfigValue;
           let statsAnalyzerStub;
-          let clock;
 
           beforeEach(async () => {
             meeting.meetingState = 'ACTIVE';
@@ -3323,7 +3322,6 @@ describe('plugin-meetings', () => {
             // mock the StatsAnalyzer constructor
             sinon.stub(InternalMediaCoreModule, 'StatsAnalyzer').returns(statsAnalyzerStub);
 
-            clock = sinon.useFakeTimers();
 
             await meeting.addMedia({
               mediaSettings: {},
@@ -3332,8 +3330,6 @@ describe('plugin-meetings', () => {
 
           afterEach(() => {
             meeting.config.stats.enableStatsAnalyzer = prevConfigValue;
-            sinon.restore();
-            clock.restore();
           });
 
           it('LOCAL_MEDIA_STARTED triggers "meeting:media:local:start" event and sends metrics', async () => {
@@ -3511,9 +3507,6 @@ describe('plugin-meetings', () => {
               },
             });
             fakeMembersCollection.members.member2.isInMeeting = false;
-
-            // Simulate an MQE Interval passage
-            clock.tick(60000);
 
             statsAnalyzerStub.emit(
               { file: 'test', function: 'test' },
