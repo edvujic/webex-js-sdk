@@ -161,6 +161,7 @@ import PermissionError from '../common/errors/permission';
 import {LocusMediaRequest} from './locusMediaRequest';
 import {ConnectionStateHandler, ConnectionStateEvent} from './connectionStateHandler';
 import JoinWebinarError from '../common/errors/join-webinar-error';
+import Member from '../member';
 
 // default callback so we don't call an undefined function, but in practice it should never be used
 const DEFAULT_ICE_PHASE_CALLBACK = () => 'JOIN_MEETING_FINAL';
@@ -6452,8 +6453,7 @@ export default class Meeting extends StatelessWebexPlugin {
 
       // Count members that are in the meeting
       options.data.intervalMetadata.meetingUserCount = Object.values(members).filter(
-        // @ts-ignore
-        (member) => member.isInMeeting === true
+        (member: Member) => member.isInMeeting === true
       ).length;
 
       // @ts-ignore
