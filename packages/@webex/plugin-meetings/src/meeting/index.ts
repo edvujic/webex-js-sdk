@@ -6450,10 +6450,10 @@ export default class Meeting extends StatelessWebexPlugin {
 
       const {members} = this.getMembers().membersCollection;
 
-      // Count members with a 'state' of 'JOINED'
+      // Count members that are in the meeting
       options.data.intervalMetadata.meetingUserCount = Object.values(members).filter(
         // @ts-ignore
-        (member) => member.participant.state === 'JOINED'
+        (member) => member.isInMeeting === true
       ).length;
 
       // @ts-ignore

@@ -3487,9 +3487,9 @@ describe('plugin-meetings', () => {
           it('counts the number of JOINED members for MEDIA_QUALITY event', async () => {
             let fakeMembersCollection = {
               members: {
-                member1: { participant: { state: 'JOINED' } },
-                member2: { participant: { state: 'LEFT' } },
-                member3: { participant: { state: 'JOINED' } },
+                member1: { isInMeeting: true },
+                member2: { isInMeeting: true },
+                member3: { isInMeeting: false },
               },
             };
             sinon.stub(meeting, 'getMembers').returns({ membersCollection: fakeMembersCollection });
@@ -3510,18 +3510,9 @@ describe('plugin-meetings', () => {
                 intervals: [sinon.match.has('intervalMetadata', sinon.match.has('meetingUserCount', 2))],
               },
             });
+            fakeMembersCollection.members.member2.isInMeeting = false;
 
-            // Update the fake members collection to simulate a change in participant states
-            fakeMembersCollection = {
-              members: {
-                member1: { participant: { state: 'JOINED' } },
-                member2: { participant: { state: 'LEFT' } },
-                member3: { participant: { state: 'LEFT' } },
-              },
-            };
-            meeting.getMembers.restore();
-            sinon.stub(meeting, 'getMembers').returns({ membersCollection: fakeMembersCollection });
-
+            // Simulate an MQE Interval passage
             clock.tick(60000);
 
             statsAnalyzerStub.emit(
