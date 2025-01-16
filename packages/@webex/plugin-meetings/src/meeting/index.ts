@@ -6453,7 +6453,7 @@ export default class Meeting extends StatelessWebexPlugin {
 
       // Count members that are in the meeting
       options.data.intervalMetadata.meetingUserCount = Object.values(members).filter(
-        (member: Member) => member.isInMeeting === true
+        (member: Member) => member.isInMeeting
       ).length;
 
       // @ts-ignore
