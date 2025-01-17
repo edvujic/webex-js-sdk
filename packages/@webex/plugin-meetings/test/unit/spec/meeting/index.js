@@ -3322,7 +3322,6 @@ describe('plugin-meetings', () => {
             // mock the StatsAnalyzer constructor
             sinon.stub(InternalMediaCoreModule, 'StatsAnalyzer').returns(statsAnalyzerStub);
 
-
             await meeting.addMedia({
               mediaSettings: {},
             });
