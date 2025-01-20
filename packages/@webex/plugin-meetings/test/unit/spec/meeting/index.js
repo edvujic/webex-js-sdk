@@ -10731,6 +10731,7 @@ describe('plugin-meetings', () => {
           meeting.webex.internal.llm.on = sinon.stub();
           meeting.webex.internal.llm.off = sinon.stub();
           meeting.processRelayEvent = sinon.stub();
+          meeting.webinar.isJoinPracticeSessionDataChannel = sinon.stub().returns(false);
         });
 
         it('does not connect if the call is not joined yet', async () => {
@@ -10862,6 +10863,19 @@ describe('plugin-meetings', () => {
             meeting.processRelayEvent
           );
         });
+
+
+        it('connect ps data channel if ps started in webinar', async () => {
+          meeting.joinedWith = {state: 'JOINED'};
+          meeting.locusInfo = {url: 'a url', info: {datachannelUrl: 'a datachannel url', practiceSessionDatachannelUrl: 'a ps datachannel url'}};
+          meeting.webinar.isJoinPracticeSessionDataChannel = sinon.stub().returns(true);
+          await meeting.updateLLMConnection();
+
+          assert.notCalled(webex.internal.llm.disconnectLLM);
+          assert.calledWith(webex.internal.llm.registerAndConnect, 'a url', 'a ps datachannel url');
+
+        });
+
       });
 
       describe('#setLocus', () => {
@@ -11053,6 +11067,7 @@ describe('plugin-meetings', () => {
           beforeEach(() => {
             meeting.selfId = '9528d952-e4de-46cf-8157-fd4823b98377';
             meeting.deviceUrl = 'my-web-url';
+            meeting.locusInfo.info = {isWebinar: false};
           });
 
           const USER_IDS = {
@@ -11278,13 +11293,24 @@ describe('plugin-meetings', () => {
 
                 activeSharingId.whiteboard = beneficiaryId;
 
-                eventTrigger.share.push({
+                eventTrigger.share.push(meeting.webinar.selfIsAttendee ? {
+                  eventName: EVENT_TRIGGERS.MEETING_STARTED_SHARING_REMOTE,
+                  functionName: 'remoteShare',
+                  eventPayload: {
+                    memberId: null,
+                    url,
+                    shareInstanceId,
+                    annotationInfo: undefined,
+                    resourceType: undefined,
+                  },
+                } : {
                   eventName: EVENT_TRIGGERS.MEETING_STARTED_SHARING_WHITEBOARD,
                   functionName: 'startWhiteboardShare',
                   eventPayload: {resourceUrl, memberId: beneficiaryId},
                 });
 
-                shareStatus = SHARE_STATUS.WHITEBOARD_SHARE_ACTIVE;
+                shareStatus = meeting.webinar.selfIsAttendee ? SHARE_STATUS.REMOTE_SHARE_ACTIVE : SHARE_STATUS.WHITEBOARD_SHARE_ACTIVE;
+
               }
 
               if (eventTrigger.member) {
@@ -11316,13 +11342,24 @@ describe('plugin-meetings', () => {
                   newPayload.current.content.disposition = FLOOR_ACTION.ACCEPTED;
                   newPayload.current.content.beneficiaryId = otherBeneficiaryId;
 
-                  eventTrigger.share.push({
+                  eventTrigger.share.push(meeting.webinar.selfIsAttendee ? {
+                    eventName: EVENT_TRIGGERS.MEETING_STARTED_SHARING_REMOTE,
+                    functionName: 'remoteShare',
+                    eventPayload: {
+                      memberId: null,
+                      url,
+                      shareInstanceId,
+                      annotationInfo: undefined,
+                      resourceType: undefined,
+                    },
+                  } : {
                     eventName: EVENT_TRIGGERS.MEETING_STARTED_SHARING_WHITEBOARD,
                     functionName: 'startWhiteboardShare',
                     eventPayload: {resourceUrl, memberId: beneficiaryId},
                   });
 
-                  shareStatus = SHARE_STATUS.WHITEBOARD_SHARE_ACTIVE;
+                  shareStatus = meeting.webinar.selfIsAttendee ? SHARE_STATUS.REMOTE_SHARE_ACTIVE : SHARE_STATUS.WHITEBOARD_SHARE_ACTIVE;
+
                 } else {
                   eventTrigger.share.push({
                     eventName: EVENT_TRIGGERS.MEETING_STOPPED_SHARING_WHITEBOARD,
@@ -11448,6 +11485,38 @@ describe('plugin-meetings', () => {
           it('should have #setUpLocusMediaSharesListener', () => {
             assert.exists(meeting.setUpLocusMediaSharesListener);
           });
+
+          describe('Whiteboard Share - Webinar Attendee', () => {
+            it('Scenario #1: Whiteboard sharing as a webinar attendee', () => {
+              // Set the webinar attendee flag
+              meeting.webinar = { selfIsAttendee: true };
+              meeting.locusInfo.info.isWebinar = true;
+
+              // Step 1: Start sharing whiteboard A
+              const data1 = generateData(
+                blankPayload,              // Initial payload
+                true,                      // isGranting: Granting share
+                false,                     // isContent: Whiteboard (not content)
+                USER_IDS.REMOTE_A,         // Beneficiary ID: Remote user A
+                RESOURCE_URLS.WHITEBOARD_A // Resource URL: Whiteboard A
+              );
+
+              // Step 2: Stop sharing whiteboard A
+              const data2 = generateData(
+                data1.payload,             // Updated payload from Step 1
+                false,                     // isGranting: Stopping share
+                false,                     // isContent: Whiteboard
+                USER_IDS.REMOTE_A          // Beneficiary ID: Remote user A
+              );
+
+              // Validate the payload changes and status updates
+              payloadTestHelper([data1]);
+
+              // Specific assertions for webinar attendee status
+              assert.equal(meeting.shareStatus, SHARE_STATUS.REMOTE_SHARE_ACTIVE);
+            });
+          });
+
 
           describe('Whiteboard A --> Whiteboard B', () => {
             it('Scenario #1: you share both whiteboards', () => {
